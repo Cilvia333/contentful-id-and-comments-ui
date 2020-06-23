@@ -1,0 +1,54 @@
+{
+  "name": "id-and-comments",
+  "version": "0.1.0",
+  "private": true,
+  "devDependencies": {
+    "@babel/core": "7.3.4",
+    "@babel/plugin-proposal-class-properties": "7.3.4",
+    "@babel/plugin-transform-runtime": "7.3.4",
+    "@babel/preset-env": "7.3.4",
+    "@babel/preset-react": "7.0.0",
+    "@contentful/eslint-config-extension": "0.3.1",
+    "@testing-library/react": "8.0.4",
+    "@types/jest": "24.0.15",
+    "@types/uuid": "^8.0.0",
+    "@types/webpack-env": "1.13.9",
+    "cssnano": "4.1.10",
+    "eslint": "^7.1.0",
+    "typescript": "3.9.3"
+  },
+  "scripts": {
+    "start": "contentful-extension-scripts start",
+    "build": "contentful-extension-scripts build",
+    "lint": "eslint ./ --ext .js,.jsx,.ts,.tsx && tsc -p ./ --noEmit",
+    "test": "contentful-extension-scripts test --env=jsdom --watch",
+    "test:coverage": "contentful-extension-scripts test --env=jsdom --coverage",
+    "deploy": "npm run build && contentful extension update --force",
+    "configure": "contentful space use && contentful space environment use",
+    "login": "contentful login",
+    "logout": "contentful logout",
+    "help": "contentful-extension-scripts help"
+  },
+  "dependencies": {
+    "@types/codemirror": "0.0.93",
+    "@types/markdown-to-jsx": "6.11.0",
+    "codemirror": "^5.48.0",
+    "domino": "^2.1.5",
+    "emotion": "^10.0.17",
+    "http2": "^3.3.7",
+    "ky": "^0.20.0",
+    "lodash": "^4.17.15",
+    "lodash-es": "^4.17.15",
+    "markdown-to-jsx": "^6.11.1",
+    "node-fetch": "^2.6.0",
+    "page-metadata-parser": "^1.1.4",
+    "prop-types": "^15.7.2",
+    "uuid": "^8.1.0",
+    "yarn": "^1.22.4"
+  },
+  "browserslist": [
+    "last 5 Chrome version",
+    "> 1%",
+    "not ie <= 11"
+  ]
+}

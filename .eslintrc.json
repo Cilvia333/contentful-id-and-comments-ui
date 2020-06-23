@@ -1,0 +1,11 @@
+{
+  "extends": [
+    "@contentful/eslint-config-extension/typescript",
+    "@contentful/eslint-config-extension/jest",
+    "@contentful/eslint-config-extension/jsx-a11y",
+    "@contentful/eslint-config-extension/react"
+  ],
+  "rules": {
+    "react/prop-types": "off"
+  }
+}
