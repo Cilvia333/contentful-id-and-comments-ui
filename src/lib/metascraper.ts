@@ -5,7 +5,7 @@ import domino from "domino";
 const getOgp = async (url: string) => {
     try {
         const html = await ky.get(url).text();
-        const doc = domino.createWindow(html).document;
+        const doc = domino.createDocument(html);
         console.log(url);
         console.log(doc);
         return getMetadata(doc, url); 
