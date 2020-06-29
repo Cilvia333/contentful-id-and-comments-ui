@@ -43,7 +43,7 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
     const targetClonedItem = cloned.find((item) => item[keySymbol] === key)!;
     targetClonedItem.id = value;
     const ogp = await metascraper(serviceUrl + value );
-    targetClonedItem.imageUrl = ogp? ogp.image :'0';
+    targetClonedItem.imageUrl = ogp? ogp.image :'';
     targetClonedItem.title = ogp? ogp.title: `Can't find the item`;
     setItems(cloned);
     await setValueIfValid(cloned);
@@ -72,7 +72,7 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
         "zh-Hant": "",
       },
       title: `Can't find the item`,
-      imageUrl: '0',
+      imageUrl: '',
     });
     setItems(cloned);
   }, [items]);
@@ -176,7 +176,6 @@ init<FieldExtensionSDK>(async (sdk) => {
 
   const prev = sdk.field.getValue() as IdAndComment[] | null;
   const { service } = sdk.parameters.instance as any;
-  console.log(service);
 
   let initialValue: IdAndCommentWithKey[];
   if (prev == null || prev.length === 0) {
@@ -189,15 +188,16 @@ init<FieldExtensionSDK>(async (sdk) => {
         "zh-Hans": "",
         "zh-Hant": "",
       },
-      title: '',
-      imageUrl: `Can't find the item`,
+      title: `Can't find the item`,
+      imageUrl: '',
     }];
   } else {
     initialValue = await Promise.all(prev.map(async (_value) => {
       const value = _value as IdAndCommentWithKey;
       value[keySymbol] = uuidv4();
       const ogp = await metascraper(service + value.id );
-      value.imageUrl = ogp? ogp.image :'0';
+      console.log(ogp);
+      value.imageUrl = ogp? ogp.image : '';
       value.title = ogp? ogp.title: `Can't find the item`;
       return value;
     }));
