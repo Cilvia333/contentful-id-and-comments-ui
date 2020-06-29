@@ -6,8 +6,6 @@ const getOgp = async (url: string) => {
         const html = await ky.get(url).text();
         const parser = new DOMParser();​​​​​​
         const doc = parser.parseFromString(html,"text/html");
-        console.log(url);
-        console.log(doc);
         return getMetadata(doc, url); 
     }
     catch(e){

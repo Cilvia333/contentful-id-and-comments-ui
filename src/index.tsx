@@ -196,7 +196,6 @@ init<FieldExtensionSDK>(async (sdk) => {
       const value = _value as IdAndCommentWithKey;
       value[keySymbol] = uuidv4();
       const ogp = await metascraper(service + value.id );
-      console.log(ogp);
       value.imageUrl = ogp? ogp.image : '';
       value.title = ogp? ogp.title: `Can't find the item`;
       return value;
