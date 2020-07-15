@@ -23,7 +23,7 @@ type IdAndCommentWithKey = IdAndComment & Ogp & { [keySymbol]: string };
 
 interface Props {
   sdk: FieldExtensionSDK;
-  setValueIfValid(items: IdAndComment[]): Promise<void>;
+  setValue(items: IdAndComment[]): Promise<void>;
   initialValue: IdAndCommentWithKey[];
   serviceUrl: string;
 }
@@ -39,12 +39,14 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const targetClonedItem = cloned.find((item) => item[keySymbol] === key)!;
     targetClonedItem.id = value;
-    const ogp = await metascraper(serviceUrl + value );
-    targetClonedItem.imageUrl = ogp? ogp.image :'';
-    targetClonedItem.title = ogp? ogp.title: `Can't find the item`;
+
+    const ogp = await metascraper(serviceUrl + value);
+    targetClonedItem.imageUrl = ogp ? ogp.image : '';
+    targetClonedItem.title = ogp ? ogp.title: `Can't find the item`;
+
     setItems(cloned);
-    await setValueIfValid(cloned);
-  }, [items, setValueIfValid]);
+    await setValue(cloned);
+  }, [items, setValue]);
 
   const handleChangeComment = useCallback(async (value: string, key: string) => {
     const cloned = items.slice();
@@ -52,10 +54,10 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
     const targetClonedItem = cloned.find((item) => item[keySymbol] === key)!;
     targetClonedItem.comment = value;
     setItems(cloned);
-    await setValueIfValid(cloned);
-  }, [items, setValueIfValid]);
+    await setValue(cloned);
+  }, [items, setValue]);
 
-  const handleAddItem = useCallback((key: string) => {
+  const handleAddItem = useCallback(async (key: string) => {
     const cloned = items.slice();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const targetClonedItemIndex = cloned.findIndex((item) => item[keySymbol] === key)!;
@@ -67,9 +69,10 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
       imageUrl: '',
     });
     setItems(cloned);
+    await setValue(cloned);
   }, [items]);
 
-  const handleDeleteItem = useCallback((key: string) => {
+  const handleDeleteItem = useCallback(async (key: string) => {
     if (items.length == 1) {
       return;
     }
@@ -79,7 +82,8 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
     const targetClonedItemIndex = cloned.findIndex((item) => item[keySymbol] === key)!;
     cloned.splice(targetClonedItemIndex, 1);
     setItems(cloned);
-  }, [items]);
+    await setValue(cloned);
+    }, [items]);
 
   // input[type=number] のスクロールによる値の変更を抑制する
   const preventWheelHandler = useCallback((e: Event) => {
@@ -135,24 +139,23 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
 init<FieldExtensionSDK>(async (sdk) => {
   sdk.window.startAutoResizer();
 
-  const setValueIfValid = async (items: IdAndComment[]) => {
+  const setValue = async (items: IdAndComment[]) => {
     const idSet = new Set();
+    let invalid = false;
 
     // validation
     for (const item of items) {
       if (item.id === null) {
-        sdk.field.setInvalid(true);
-        return;
+        invalid = true;
       }
 
       if (idSet.has(item.id)) {
-        sdk.field.setInvalid(true);
-        return;
+        invalid = true;
       }
       idSet.add(item.id);
     }
 
-    sdk.field.setInvalid(false);
+    sdk.field.setInvalid(invalid);
     await sdk.field.setValue(items);
   };
 
@@ -177,12 +180,12 @@ init<FieldExtensionSDK>(async (sdk) => {
     initialValue = await Promise.all(prev.map(async (_value) => {
       const value = _value as IdAndCommentWithKey;
       value[keySymbol] = uuidv4();
-      const ogp = await metascraper(service + value.id );
+      const ogp = await metascraper(service + value.id);
       value.imageUrl = ogp? ogp.image : '';
       value.title = ogp? ogp.title: `Can't find the item`;
       return value;
     }));
   }
 
-  render(<App sdk={sdk} setValueIfValid={setValueIfValid} initialValue={initialValue} serviceUrl={service}/>, document.getElementById('root'));
+  render(<App sdk={sdk} setValue={setValue} initialValue={initialValue} serviceUrl={service}/>, document.getElementById('root'));
 });
