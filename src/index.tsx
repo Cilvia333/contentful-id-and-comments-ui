@@ -11,13 +11,10 @@ import { MarkdownEditor } from "./markdown/MarkdownEditor";
 import { init, FieldExtensionSDK } from "contentful-ui-extensions-sdk";
 import metascraper from './lib/metascraper';
 
-type Locale = "ja" | "en" | "zh-Hans" | "zh-Hant";
-const locales = ["ja", "en", "zh-Hans", "zh-Hant"] as const;
-
 interface IdAndComment {
   id: number | null;
   /** Markdown */
-  comment: Record<Locale, string>;
+  comment: string;
 }
 
 const keySymbol = Symbol("key");
@@ -49,11 +46,11 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
     await setValueIfValid(cloned);
   }, [items, setValueIfValid]);
 
-  const handleChangeComment = useCallback(async (value: string, key: string, locale: Locale) => {
+  const handleChangeComment = useCallback(async (value: string, key: string) => {
     const cloned = items.slice();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const targetClonedItem = cloned.find((item) => item[keySymbol] === key)!;
-    targetClonedItem.comment[locale] = value;
+    targetClonedItem.comment = value;
     setItems(cloned);
     await setValueIfValid(cloned);
   }, [items, setValueIfValid]);
@@ -65,12 +62,7 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
     cloned.splice(targetClonedItemIndex + 1, 0, {
       [keySymbol]: uuidv4(),
       id: null,
-      comment: {
-        ja: "",
-        en: "",
-        "zh-Hans": "",
-        "zh-Hant": "",
-      },
+      comment: "",
       title: `Can't find the item`,
       imageUrl: '',
     });
@@ -124,18 +116,13 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
           />
           <details>
             <summary>コメント</summary>
-            {locales.map((locale) => {
-              return <React.Fragment key={locale}>
-                <span style={{ display: "inline-block", color: "#2a3039", fontSize: ".875rem", fontWeight: 600, marginTop: ".5rem", marginBottom: ".5rem" }}>{locale}</span>
                 <MarkdownEditor
                   isInitiallyDisabled={false}
                   sdk={sdk}
                   disabled={false}
-                  initialValue={comment[locale]}
-                  saveValueToSDK={(e: string) => handleChangeComment(e, key, locale)}
+                  initialValue={comment}
+                  saveValueToSDK={(e: string) => handleChangeComment(e, key,)}
                 />
-              </React.Fragment>;
-            })}
           </details>
           <Button icon="Plus" buttonType="muted" size="small" onClick={() => handleAddItem(key)} />
           <Button icon="Delete" buttonType="muted" size="small" onClick={() => handleDeleteItem(key)} />
@@ -182,12 +169,7 @@ init<FieldExtensionSDK>(async (sdk) => {
     initialValue = [{
       [keySymbol]: uuidv4(),
       id: null,
-      comment: {
-        ja: "",
-        en: "",
-        "zh-Hans": "",
-        "zh-Hant": "",
-      },
+      comment: "",
       title: `Can't find the item`,
       imageUrl: '',
     }];
@@ -201,6 +183,6 @@ init<FieldExtensionSDK>(async (sdk) => {
       return value;
     }));
   }
-  
+
   render(<App sdk={sdk} setValueIfValid={setValueIfValid} initialValue={initialValue} serviceUrl={service}/>, document.getElementById('root'));
 });
