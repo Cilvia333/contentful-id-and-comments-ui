@@ -2,7 +2,7 @@ import "@contentful/forma-36-react-components/dist/styles.css";
 import "codemirror/lib/codemirror.css";
 import "./index.css";
 
-import React, { useCallback, useState, FC, FocusEvent, ChangeEvent } from "react";
+import React, { useCallback, useEffect, useState, FC, FocusEvent, ChangeEvent } from "react";
 import { render } from "react-dom";
 import { v4 as uuidv4 } from "uuid";
 import { Asset, Button, Form, TextInput, FormLabel } from "@contentful/forma-36-react-components";
@@ -28,8 +28,46 @@ interface Props {
   serviceUrl: string;
 }
 
-export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl }) => {
+export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
   const [items, setItems] = useState<IdAndCommentWithKey[]>(initialValue);
+  const [isDefaultLocale] = useState(sdk.field.locale === sdk.locales.default);
+
+  useEffect(() => {
+    if (isDefaultLocale) { return; }
+
+    // default locale の値が変更されたときに ID を追随する
+    const currentEntryField = sdk.entry.fields[sdk.field.id];
+    const offValueChange = currentEntryField.onValueChanged(sdk.locales.default, async (newValue: IdAndCommentWithKey[]) => {
+      const idToItem = new Map<number, IdAndCommentWithKey>();
+      for (const item of items) {
+        if (typeof item.id === "number") {
+          idToItem.set(item.id, item);
+        }
+      }
+
+      for (const item of newValue) {
+        if (item.id === null) { continue; }
+
+        if (idToItem.has(item.id)) {
+          const prev = idToItem.get(item.id)!;
+          item.comment = prev.comment;
+          item[keySymbol] = prev[keySymbol];
+        } else {
+          item.comment = "";
+          item[keySymbol] = uuidv4();
+        }
+
+        const ogp = await metascraper(serviceUrl + item.id);
+        item.imageUrl = ogp ? ogp.image : '';
+        item.title = ogp ? ogp.title: `Can't find the item`;
+      }
+
+      setItems(newValue);
+      await setValue(newValue);
+    });
+
+    return offValueChange as () => void;
+  }, [items, setValue]);
 
   const handleChangeId = useCallback(async (e: ChangeEvent<HTMLInputElement>, key: string) => {
     const target = e.currentTarget;
@@ -108,6 +146,7 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
             type="number"
             width="large"
             required={true}
+            readOnly={!isDefaultLocale}
             min="1"
             value={id !== null ? id + "" : ""}
             onChange={(e) => handleChangeId(e, key)}
@@ -128,8 +167,10 @@ export const App: FC<Props> = ({ sdk, setValueIfValid, initialValue, serviceUrl 
                   saveValueToSDK={(e: string) => handleChangeComment(e, key,)}
                 />
           </details>
-          <Button icon="Plus" buttonType="muted" size="small" onClick={() => handleAddItem(key)} />
-          <Button icon="Delete" buttonType="muted" size="small" onClick={() => handleDeleteItem(key)} />
+          {isDefaultLocale && <>
+            <Button icon="Plus" buttonType="muted" size="small" onClick={() => handleAddItem(key)} />
+            <Button icon="Delete" buttonType="muted" size="small" onClick={() => handleDeleteItem(key)} />
+          </>}
         </React.Fragment>;
       })}
     </Form>
