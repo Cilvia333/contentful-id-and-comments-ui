@@ -18,8 +18,14 @@ interface IdAndComment {
 }
 
 const keySymbol = Symbol("key");
-type Ogp = {title:string; imageUrl: string;};
-type IdAndCommentWithKey = IdAndComment & Ogp & { [keySymbol]: string };
+const ogpSymbol = Symbol("ogp");
+
+interface Ogp {
+  title: string;
+  imageUrl: string;
+}
+
+type IdAndCommentWithKey = IdAndComment & { [ogpSymbol]: Ogp, [keySymbol]: string };
 
 interface Props {
   sdk: FieldExtensionSDK;
@@ -58,8 +64,10 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
         }
 
         const ogp = await metascraper(serviceUrl + item.id);
-        item.imageUrl = ogp ? ogp.image : '';
-        item.title = ogp ? ogp.title: `Can't find the item`;
+        item[ogpSymbol] = {
+          imageUrl: ogp ? ogp.image : '',
+          title: ogp ? ogp.title: `Can't find the item`,
+        }
       }
 
       setItems(newValue);
@@ -79,8 +87,10 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
     targetClonedItem.id = value;
 
     const ogp = await metascraper(serviceUrl + value);
-    targetClonedItem.imageUrl = ogp ? ogp.image : '';
-    targetClonedItem.title = ogp ? ogp.title: `Can't find the item`;
+    targetClonedItem[ogpSymbol] = {
+      imageUrl: ogp ? ogp.image : '',
+      title: ogp ? ogp.title: `Can't find the item`,
+    };
 
     setItems(cloned);
     await setValue(cloned);
@@ -103,8 +113,10 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
       [keySymbol]: uuidv4(),
       id: null,
       comment: "",
-      title: `Can't find the item`,
-      imageUrl: '',
+      [ogpSymbol]: {
+        title: `Can't find the item`,
+        imageUrl: '',
+      }
     });
     setItems(cloned);
     await setValue(cloned);
@@ -138,7 +150,7 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
 
   return (
     <Form>
-      {items.map(({ [keySymbol]: key, id, comment, title, imageUrl }) => {
+      {items.map(({ [keySymbol]: key, id, comment, [ogpSymbol]: { title, imageUrl } }) => {
         return <React.Fragment key={key}>
           <FormLabel htmlFor={key + "id"}>ID</FormLabel>
           <TextInput
@@ -200,11 +212,6 @@ init<FieldExtensionSDK>(async (sdk) => {
     await sdk.field.setValue(items);
   };
 
-  // Handler for external field value changes (e.g. when multiple authors are working on the same entry).
-  // sdk.field.onValueChanged((value) => {
-  //   setValue(value);
-  // });
-
   const prev = sdk.field.getValue() as IdAndComment[] | null;
   const { service } = sdk.parameters.instance as any;
 
@@ -214,16 +221,20 @@ init<FieldExtensionSDK>(async (sdk) => {
       [keySymbol]: uuidv4(),
       id: null,
       comment: "",
-      title: `Can't find the item`,
-      imageUrl: '',
+      [ogpSymbol]: {
+        title: `Can't find the item`,
+        imageUrl: '',
+      }
     }];
   } else {
     initialValue = await Promise.all(prev.map(async (_value) => {
       const value = _value as IdAndCommentWithKey;
       value[keySymbol] = uuidv4();
       const ogp = await metascraper(service + value.id);
-      value.imageUrl = ogp? ogp.image : '';
-      value.title = ogp? ogp.title: `Can't find the item`;
+      value[ogpSymbol] = {
+        imageUrl: ogp? ogp.image : '',
+        title: ogp? ogp.title: `Can't find the item`,
+      };
       return value;
     }));
   }
