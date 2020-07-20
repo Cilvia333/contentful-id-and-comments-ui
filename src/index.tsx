@@ -2,7 +2,7 @@ import "@contentful/forma-36-react-components/dist/styles.css";
 import "codemirror/lib/codemirror.css";
 import "./index.css";
 
-import React, { useCallback, useEffect, useState, FC, FocusEvent, ChangeEvent } from "react";
+import React, { useCallback, useEffect, useState, FC, FocusEvent, ChangeEvent, useRef } from "react";
 import { render } from "react-dom";
 import { v4 as uuidv4 } from "uuid";
 import { Asset, Button, Form, TextInput, FormLabel } from "@contentful/forma-36-react-components";
@@ -18,14 +18,13 @@ interface IdAndComment {
 }
 
 const keySymbol = Symbol("key");
-const ogpSymbol = Symbol("ogp");
 
 interface Ogp {
   title: string;
   imageUrl: string;
 }
 
-type IdAndCommentWithKey = IdAndComment & { [ogpSymbol]: Ogp, [keySymbol]: string };
+type IdAndCommentWithKey = IdAndComment & { [keySymbol]: string };
 
 interface Props {
   sdk: FieldExtensionSDK;
@@ -38,12 +37,19 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
   const [items, setItems] = useState<IdAndCommentWithKey[]>(initialValue);
   const [isDefaultLocale] = useState(sdk.field.locale === sdk.locales.default);
 
+  const prevDefaultLocaleItems = useRef<IdAndComment[] | null>(null);
+
+  // default locale の値が変更されたときに ID を追随する
   useEffect(() => {
     if (isDefaultLocale) { return; }
 
-    // default locale の値が変更されたときに ID を追随する
     const currentEntryField = sdk.entry.fields[sdk.field.id];
-    const offValueChange = currentEntryField.onValueChanged(sdk.locales.default, async (newValue: IdAndCommentWithKey[]) => {
+    return currentEntryField.onValueChanged(sdk.locales.default, async (defaultLocaleItems: IdAndComment[]) => {
+      if (prevDefaultLocaleItems.current === defaultLocaleItems) {
+        return;
+      }
+      prevDefaultLocaleItems.current = defaultLocaleItems;
+
       const idToItem = new Map<number, IdAndCommentWithKey>();
       for (const item of items) {
         if (typeof item.id === "number") {
@@ -51,31 +57,50 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
         }
       }
 
-      for (const item of newValue) {
-        if (item.id === null) { continue; }
+      const newItems: IdAndCommentWithKey[] = [];
+      for (const defaultLocaleItem of defaultLocaleItems) {
+        if (defaultLocaleItem.id === null) { continue; }
 
-        if (idToItem.has(item.id)) {
-          const prev = idToItem.get(item.id)!;
-          item.comment = prev.comment;
-          item[keySymbol] = prev[keySymbol];
+        if (idToItem.has(defaultLocaleItem.id)) {
+          newItems.push({
+            ...idToItem.get(defaultLocaleItem.id)!,
+          });
         } else {
-          item.comment = "";
-          item[keySymbol] = uuidv4();
-        }
-
-        const ogp = await metascraper(serviceUrl + item.id);
-        item[ogpSymbol] = {
-          imageUrl: ogp ? ogp.image : '',
-          title: ogp ? ogp.title: `Can't find the item`,
+          newItems.push({
+            ...defaultLocaleItem,
+            comment: "",
+            [keySymbol]: uuidv4(),
+          });
         }
       }
 
-      setItems(newValue);
-      await setValue(newValue);
-    });
-
-    return offValueChange as () => void;
+      setItems(newItems);
+      await setValue(newItems);
+    }) as () => void;
   }, [items, setValue]);
+
+  const [ogps, setOgps] = useState<{ [key: number]: Ogp }>({});
+  const ogpLoadings = useRef<{ [key: number]: boolean }>({});
+
+  // OGP から画像を取得する
+  useEffect(() => {
+    for (const item of items) {
+      if (item.id === null) { continue; }
+      if (ogps[item.id] !== undefined) { continue; }
+      if (ogpLoadings.current[item.id]) { continue; }
+
+      (async () => {
+        ogpLoadings.current[item.id!] = true;
+        const ogp = await metascraper(serviceUrl + item.id!);
+        ogpLoadings.current[item.id!] = false;
+        ogps[item.id!] = {
+          title: ogp?.title ?? "Can't find the item",
+          imageUrl: ogp?.image ?? "",
+        }
+        setOgps({ ...ogps });
+      })();
+    }
+  }, [items, ogps, serviceUrl]);
 
   const handleChangeId = useCallback(async (e: ChangeEvent<HTMLInputElement>, key: string) => {
     const target = e.currentTarget;
@@ -85,12 +110,6 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const targetClonedItem = cloned.find((item) => item[keySymbol] === key)!;
     targetClonedItem.id = value;
-
-    const ogp = await metascraper(serviceUrl + value);
-    targetClonedItem[ogpSymbol] = {
-      imageUrl: ogp ? ogp.image : '',
-      title: ogp ? ogp.title: `Can't find the item`,
-    };
 
     setItems(cloned);
     await setValue(cloned);
@@ -113,10 +132,6 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
       [keySymbol]: uuidv4(),
       id: null,
       comment: "",
-      [ogpSymbol]: {
-        title: `Can't find the item`,
-        imageUrl: '',
-      }
     });
     setItems(cloned);
     await setValue(cloned);
@@ -150,7 +165,8 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
 
   return (
     <Form>
-      {items.map(({ [keySymbol]: key, id, comment, [ogpSymbol]: { title, imageUrl } }) => {
+      {items.map(({ [keySymbol]: key, id, comment }) => {
+        const ogp = id !== null ? ogps[id] : null;
         return <React.Fragment key={key}>
           <FormLabel htmlFor={key + "id"}>ID</FormLabel>
           <TextInput
@@ -166,8 +182,8 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
             onBlur={handleBlurNumberInput}
           />
           <Asset
-            src={imageUrl}
-            title={title}
+            src={ogp?.imageUrl ?? ""}
+            title={ogp?.title ?? "Loading"}
           />
           <details>
             <summary>コメント</summary>
@@ -221,22 +237,14 @@ init<FieldExtensionSDK>(async (sdk) => {
       [keySymbol]: uuidv4(),
       id: null,
       comment: "",
-      [ogpSymbol]: {
-        title: `Can't find the item`,
-        imageUrl: '',
-      }
     }];
   } else {
-    initialValue = await Promise.all(prev.map(async (_value) => {
-      const value = _value as IdAndCommentWithKey;
-      value[keySymbol] = uuidv4();
-      const ogp = await metascraper(service + value.id);
-      value[ogpSymbol] = {
-        imageUrl: ogp? ogp.image : '',
-        title: ogp? ogp.title: `Can't find the item`,
+    initialValue = prev.map((value) => {
+      return {
+        ...value,
+        [keySymbol]: uuidv4(),
       };
-      return value;
-    }));
+    });
   }
 
   render(<App sdk={sdk} setValue={setValue} initialValue={initialValue} serviceUrl={service}/>, document.getElementById('root'));
