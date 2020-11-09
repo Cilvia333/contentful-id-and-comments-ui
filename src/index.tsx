@@ -2,7 +2,7 @@ import "@contentful/forma-36-react-components/dist/styles.css";
 import "codemirror/lib/codemirror.css";
 import "./index.css";
 
-import React, { useCallback, useEffect, useState, FC, FocusEvent, ChangeEvent, useRef } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useState, FC, FocusEvent, ChangeEvent, useRef } from "react";
 import { render } from "react-dom";
 import { v4 as uuidv4 } from "uuid";
 import { Asset, Button, Form, TextInput, FormLabel } from "@contentful/forma-36-react-components";
@@ -38,6 +38,10 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
   const [isDefaultLocale] = useState(sdk.field.locale === sdk.locales.default);
 
   const prevDefaultLocaleItems = useRef<IdAndComment[] | null>(null);
+
+  useLayoutEffect(() => {
+    sdk.window.startAutoResizer();
+  });
 
   // default locale の値が変更されたときに ID を追随する
   useEffect(() => {
@@ -182,6 +186,7 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
             onBlur={handleBlurNumberInput}
           />
           <Asset
+            type="image"
             src={ogp?.imageUrl ?? ""}
             title={ogp?.title ?? "Loading"}
           />
@@ -206,8 +211,6 @@ export const App: FC<Props> = ({ sdk, setValue, initialValue, serviceUrl }) => {
 };
 
 init<FieldExtensionSDK>(async (sdk) => {
-  sdk.window.startAutoResizer();
-
   const setValue = async (items: IdAndComment[]) => {
     const idSet = new Set();
     let invalid = false;
